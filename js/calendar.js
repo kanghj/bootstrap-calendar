@@ -272,6 +272,10 @@ if(!String.prototype.formatNum) {
 		return url;
 	}
 
+	Calendar.prototype.setExtendedOption = function (option_name, option_value) {
+		defaults_extended[option_name] = option_value;
+	}
+
 	function getExtentedOption(cal, option_name) {
 		var fromOptions = (cal.options[option_name] != null) ? cal.options[option_name] : null;
 		var fromLanguage = (cal.locale[option_name] != null) ? cal.locale[option_name] : null;
@@ -432,11 +436,15 @@ if(!String.prototype.formatNum) {
 		data.day = 1;
 
 		// Getting list of days in a week in correct order. Works for month and week views
-		if(getExtentedOption(this, 'first_day') == 1) {
-			data.days_name = [this.locale.d1, this.locale.d2, this.locale.d3, this.locale.d4, this.locale.d5, this.locale.d6, this.locale.d0]
-		} else {
-			data.days_name = [this.locale.d0, this.locale.d1, this.locale.d2, this.locale.d3, this.locale.d4, this.locale.d5, this.locale.d6]
+		data.days_name = [this.locale.d0, this.locale.d1, this.locale.d2, this.locale.d3, this.locale.d4, this.locale.d5, this.locale.d6];
+		// http://stackoverflow.com/questions/1985260/javascript-array-rotate
+		var times = getExtentedOption(this, 'first_day');
+		function rotate(array, n) {
+			return array.slice(n, array.length).concat(array.slice(0, n));
 		}
+
+		data.days_name = rotate(data.days_name, times);
+
 
 		// Get all events between start and end
 		var start = parseInt(this.options.position.start.getTime());
@@ -617,23 +625,19 @@ if(!String.prototype.formatNum) {
 		var first_day = getExtentedOption(this, 'first_day');
 
 		$.each(this.getEventsBetween(start, end), function(k, event) {
-			var eventStart  = new Date(parseInt(event.start));
-			eventStart.setHours(0,0,0,0);
-			var eventEnd    = new Date(parseInt(event.end));
-
-			event.start_day = new Date(parseInt(eventStart.getTime())).getDay();
-			if(first_day == 1) {
-				event.start_day = (event.start_day + 6) % 7;
-			}
-			if((eventEnd.getTime() - eventStart.getTime()) <= 86400000) {
+			event.start_day = new Date(parseInt(event.start)).getDay();
+			//if(first_day == 1) {
+				event.start_day = (event.start_day + (7 - first_day)) % 7;
+			//}
+			if((event.end - event.start) <= 86400000) {
 				event.days = 1;
 			} else {
-				event.days = ((eventEnd.getTime() - eventStart.getTime()) / 86400000);
+				event.days = ((event.end - event.start) / 86400000);
 			}
 
-			if(eventStart.getTime() < start) {
+			if(event.start < start) {
 
-				event.days = event.days - ((start - eventStart.getTime()) / 86400000);
+				event.days = event.days - ((start - event.start) / 86400000);
 				event.start_day = 0;
 			}
 
@@ -672,11 +676,12 @@ if(!String.prototype.formatNum) {
 		var cls = this.options.classes.months.outmonth;
 
 		var firstday = this.options.position.start.getDay();
-		if(getExtentedOption(this, 'first_day') == 2) {
-			firstday++;
-		} else {
-			firstday = (firstday == 0 ? 7 : firstday);
-		}
+		// if(getExtentedOption(this, 'first_day') == 2) {
+		// 	firstday++;
+		// } else {
+		// 	firstday = (firstday == 0 ? 7 : firstday);
+		// }
+		firstday += (getExtentedOption(this, 'first_day') - 1) % 7;
 
 		day = (day - firstday) + 1;
 		var curdate = new Date(this.options.position.start.getFullYear(), this.options.position.start.getMonth(), day, 0, 0, 0);
@@ -867,12 +872,13 @@ if(!String.prototype.formatNum) {
 			case 'week':
 				var curr = new Date(year, month, day);
 				var first;
-				if(getExtentedOption(this, 'first_day') == 1) {
-					first = curr.getDate() - ((curr.getDay() + 6) % 7);
-				}
-				else {
-					first = curr.getDate() - curr.getDay();
-				}
+				// if(getExtentedOption(this, 'first_day') == 1) {
+				// 	first = curr.getDate() - ((curr.getDay() + 6) % 7);
+				// }
+				// else {
+					//first = curr.getDate() - curr.getDay();
+				// }
+				first = curr.getDate();
 				this.options.position.start.setTime(new Date(year, month, first).getTime());
 				this.options.position.end.setTime(new Date(year, month, first + 7).getTime());
 				break;
